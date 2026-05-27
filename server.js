@@ -3,7 +3,9 @@ const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 
 const app = express();
-app.use(express.json());
+
+// 🚨 ENTERPRISE FIX: Base64 files heavy hoti hain, isliye limit 10MB karni zaroori hai
+app.use(express.json({ limit: '10mb' }));
 app.use(cors());
 
 const SUPABASE_URL = "https://ymuvafzrmhxilzyladwq.supabase.co";
@@ -44,6 +46,50 @@ app.get('/api/contracts', async (req, res) => {
     res.json(data);
 });
 
+// ===== 6. SECURE DOCUMENT KYC UPLOAD API =====
+app.post('/api/users/kyc-upload', async (req, res) => {
+    const { userId, docType, docNumber, fileBase64, fileName } = req.body;
+
+    if (!userId || !docType || !docNumber || !fileBase64) {
+        return res.status(400).json({ error: "Missing required KYC parameters or file data." });
+    }
+
+    try {
+        // Base64 text ko asli file buffer mein convert karo
+        const buffer = Buffer.from(fileBase64, 'base64');
+        
+        // Secure file path banao (User ID ke folder ke andar file save hogi)
+        const filePath = `${userId}/${Date.now()}-${fileName}`;
+
+        // 1. Pucho file ko Supabase Secure 'kyc-documents' Bucket mein
+        const { data: storageData, error: storageError } = await supabase
+            .storage
+            .from('kyc-documents')
+            .upload(filePath, buffer, {
+                contentType: 'image/jpeg', // Standard image fallback
+                upsert: true
+            });
+
+        if (storageError) throw new Error("Storage Upload Failed: " + storageError.message);
+
+        // 2. Database mein user ka verification status 'TRUE' update karo
+        const { error: dbError } = await supabase
+            .from('users')
+            .update({ govt_id_verified: true })
+            .eq('id', userId);
+
+        if (dbError) throw new Error("Database Update Failed: " + dbError.message);
+
+        res.status(200).json({ 
+            message: "KYC Document locked in vault successfully!", 
+            path: filePath 
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 🚨 SERVER START HAMESHA SABSE LAST MEIN HOTA HAI 🚨
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Engine running on port ${PORT}`); });
-
