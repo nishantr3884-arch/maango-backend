@@ -1,0 +1,49 @@
+const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
+const cors = require('cors');
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+const SUPABASE_URL = "https://ymuvafzrmhxilzyladwq.supabase.co";
+const SUPABASE_SERVICE_KEY = "sb_secret_SHCC7qkGO7QAyXaHRPCkTQ_2fvXMz_T"; 
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+app.get('/', (req, res) => {
+    res.json({ status: "online", message: "Maango API running directly via GitHub + Render." });
+});
+
+app.post('/api/users/register', async (req, res) => {
+    const { id, name, email, country, user_type } = req.body;
+    if (!id || !name || !email || !country || !user_type) {
+        return res.status(400).json({ error: "Missing required fields." });
+    }
+    const { data, error } = await supabase.from('users').insert([{ id, name, email, country, user_type }]).select();
+    if (error) return res.status(500).json({ error: error.message });
+    res.status(201).json({ message: "User saved in Supabase.", data });
+});
+
+app.post('/api/contracts/create', async (req, res) => {
+    const { buyer_ref, farmer_ref, expert_id, expert_name, crop_details, escrow_amount } = req.body;
+    if (!buyer_ref || !farmer_ref || !expert_id || !crop_details || !escrow_amount) {
+        return res.status(400).json({ error: "Incomplete metadata." });
+    }
+    const contract_id = 'MNG-' + Math.floor(Math.random() * 90000 + 10000);
+    const { data, error } = await supabase.from('contracts').insert([{
+        contract_id, buyer_ref, farmer_ref, expert_id, expert_name, crop_details, escrow_amount, status: 'Escrow Locked 🔒'
+    }]).select();
+    if (error) return res.status(500).json({ error: error.message });
+    res.status(201).json({ message: "Escrow locked.", data });
+});
+
+app.get('/api/contracts', async (req, res) => {
+    const { data, error } = await supabase.from('contracts').select('*').order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => { console.log(`Engine running on port ${PORT}`); });
+
