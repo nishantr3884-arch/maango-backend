@@ -8,8 +8,9 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(cors());
 
-const SUPABASE_URL = "https://ymuvafzrmhxilzyladwq.supabase.co";
-const SUPABASE_SERVICE_KEY = "sb_secret_SHCC7qkGO7QAyXaHRPCkTQ_2fvXMz_T"; 
+// 🚨 YAHAN CHANGE KIYA HAI: Hardcoded key hata di aur process.env laga diya
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://ymuvafzrmhxilzyladwq.supabase.co";
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_KEY; 
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
